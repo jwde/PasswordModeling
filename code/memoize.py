@@ -1,3 +1,5 @@
+import functools
+
 def memoize(fun):
     class memoizer(dict):
         def __init__(self, fun):
@@ -10,9 +12,12 @@ def memoize(fun):
             self[key] = self.fun(*key)
             return self[key]
 
-        def __get__(self, o, ot):
+        def __get__(self, o, ot=None):
+            if o is None:
+                return self.fun
             fun = functools.partial(self.__call__, o)
             fun.reset = self._reset
+            return fun
 
         def _reset(self):
             self.clear()

@@ -1,5 +1,6 @@
-from math import log, exp
+from math import log, exp, isnan
 import random
+from decimal import *
 
 start_token = "<S>"
 end_token = "</S>"
@@ -8,9 +9,10 @@ def Preprocess(corpus):
     return [[start_token] + [token for token in pwd] + [end_token] for pwd in corpus]
 
 class BigramLM:
-    def __init__(self):
+    def __init__(self, training_corpus):
         self.bigram_counts = {}
         self.unigram_counts = {}
+        self.Train(training_corpus)
 
     def Train(self, training_corpus):
         training_set = Preprocess(training_corpus)
@@ -40,20 +42,35 @@ class BigramLM:
         return ''.join(sample[1:-1])
 
     # gets the (unsmoothed) probability of a string given the bigramlm
-#    def StringLogProbability(self, string):
+    def StringLogProbability(self, string):
+        preprocessed = Preprocess([string])[0]
+        logprob = 0
+        for i in xrange(1, len(preprocessed)):
+            unigram = preprocessed[i - 1]
+            bigram = preprocessed[i]
+            if unigram in self.unigram_counts and unigram in self.bigram_counts and bigram in self.bigram_counts[unigram]:
+                logprob += log(self.bigram_counts[unigram][bigram]) - log(self.unigram_counts[unigram])
+            else:
+                logprob = float('-inf')
+        return logprob
 
+    def ExpectedGuesses(self, string):
+        logprob = self.StringLogProbability(string)
+        try:
+            expectation = Decimal(-logprob).exp()
+            return expectation if not isnan(expectation) else float('inf')
+        except:
+            return float('inf')
 
-def BigramLMGenerator(training_corpus):
-    lm = BigramLM()
-    lm.Train(training_corpus)
-    while True:
-        yield lm.GenerateSample()
+    def Generator(self):
+        while True:
+            yield self.GenerateSample()
 
-def SimplePrunedBigramLMGenerator(training_corpus):
-    tries = set()
-    gen = BigramLMGenerator(training_corpus)
-    while True:
-        pwd = gen.next()
-        if not pwd in tries:
-            tries.update([pwd])
-            yield pwd
+    def SimplePrunedGenerator(self):
+        tries = set()
+        while True:
+            pwd = self.GenerateSample()
+            if not pwd in tries:
+                tries.update([pwd])
+                yield pwd
+

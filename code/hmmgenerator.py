@@ -1,7 +1,49 @@
-from math import log, exp, log1p
+from math import log, exp, log1p, isnan
 import random
 from memoize import memoize
+import nltk
+from decimal import *
 
+class HMMLM:
+    def __init__(self, training_corpus, num_states):
+        sequences = [[(c, "") for c in pwd] for pwd in training_corpus]
+        symbols = list(set([c for pwd in training_corpus for c in pwd]))
+        states = range(num_states)
+        trainer = nltk.tag.hmm.HiddenMarkovModelTrainer(states=states, symbols=symbols)
+        self.hmm = trainer.train_unsupervised(sequences)
+
+    def Sample(self, range_start, range_end):
+        pwd = self.hmm.random_sample(random.Random(), random.randint(range_start, range_end))
+        pwd = "".join([e[0] for e in pwd])
+        return pwd
+
+    def StringProbability(self, pwd):
+        return self.hmm.log_probability([(c, None) for c in pwd])
+
+    def ExpectedGuesses(self, pwd):
+        logprob = self.StringProbability(pwd)
+        try:
+            expectation = Decimal(-logprob).exp()
+            return expectation if not isnan(expectation) else float('inf')
+        except:
+            return float('inf')
+
+    def Generator(self):
+        while True:
+            pwd = self.hmm.random_sample(random.Random(), random.randint(4, 18))
+            pwd = "".join([e[0] for e in pwd])
+            yield pwd
+
+
+        """
+def BigramHMMGenerator(training_corpus, num_states):
+    while True:
+        pwd = hmm.random_sample(random.Random(), random.randint(4, 18))
+        pwd = "".join([e[0] for e in pwd])
+        yield pwd
+    """
+
+"""
 start_token = "<S>"
 end_token = "</S>"
 wildcard_token = "<*>"
@@ -22,7 +64,7 @@ def RandomPartition(count, s):
     if count is 1:
         return [s]
     split_prob = (random.random() * .4 + .2) * s
-    split_count = len(count) / 2
+    split_count = count / 2
     return RandomPartition(split_count, split_prob) + \
            RandomPartition(count - split_count, s - split_prob)
 
@@ -38,12 +80,12 @@ class BigramHMM:
         self.o_vocabulary = set(vocabulary)
         self.states = range(state_count)
         self.start_probability = {state: prob for (state, prob) in zip(self.states, RandomLogProbs(state_count))}
-        self.transition_probability = {state1: {state2: prob for (state2, prob) in (self.states, RandomLogProbs(state_count))} for state1 in self.states}
+        self.transition_probability = {state1: {state2: prob for (state2, prob) in zip(self.states, RandomLogProbs(state_count))} for state1 in self.states}
         self.end_probability = {state: prob for (state, prob) in zip(self.states, RandomLogProbs(state_count))}
         self.emission_probability = {state: {symbol: prob for (symbol, prob) in zip(vocabulary, RandomLogProbs(len(vocabulary)))} for state in self.states}
 
     @memoize
-    def ForwardMatrix(pwd):
+    def ForwardMatrix(self, pwd):
         bp = [{state: None for state in self.states} for c in pwd]
 
         # initialization
@@ -57,7 +99,7 @@ class BigramHMM:
 
 
     @memoize
-    def BackwardMatrix(pwd):
+    def BackwardMatrix(self, pwd):
         bp = [{state: None for state in self.states} for c in pwd]
 
         # initialization
@@ -71,73 +113,62 @@ class BigramHMM:
 
 
     @memoize
-    def ForwardProbability(step, state, pwd):
+    def ForwardProbability(self, step, state, pwd):
         matrix = self.ForwardMatrix(pwd)
         if state == wildcard_token:
             return SumLogProbs(matrix[step].values())
         return matrix[step][state]
-        """
-        if step is 0:
-            return self.start_probability[end_state]
 
-        bp = [{state: None for state in self.states} for c in pwd]
-
-        # initialization
-        bp[0] = {state: self.start_probability[state] + self.emission_probability[state][pwd[0]] for state in self.states}
-
-        # recursion
-        for i in xrange(1, step - 1):
-            bp[i] = {state: sum(map(lambda p: bp[i - 1][p] + self.transition_probability[p][state] + self.emission_probability[state][pwd[i]], bp[i - 1])) for state in self.states}
-
-        # termination
-        if end_state == wildcard_token:
-            return sum(map(lambda state: sum(map(lambda p: bp[step - 1][p] + self.transition_probability[p][state] + self.emission_probability[state][pwd[step]], bp[step - 1])), bp[step]))
-
-        return sum(map(lambda p: bp[step - 1][p] + self.transition_probability[p][end_state] + self.emission_probability[end_state][pwd[step]], bp[step - 1]))
-    """
 
     @memoize
-    def BackwardProbability(step, state, pwd):
+    def BackwardProbability(self, step, state, pwd):
         matrix = self.BackwardMatrix(pwd)
         return matrix[step][state]
-        """
-        last_step = len(pwd) - 1
-        if step == last_step:
-            return self.end_probability[start_state]
-        
-        bp = [{state: None for state in self.states} for c in pwd]
 
-        # initialization
-        bp[last_step] = {state: self.end_probability[state] for state in self.states}
-
-        # recursion
-        for i in reversed(xrange(step + 1, last_step - 1)):
-            bp[i] = {state: sum(map(lambda n: bp[i + 1][n] + self.transition_probability[state][n] + self.emission_probability[n][pwd[i + 1]], bp[i + 1])) for state in self.states}
-
-        # termination
-        return sum(map(lambda n: bp[step + 1][n] + self.transition_probability[start_state][n] + self.emission_probability[n][pwd[step + 1]], bp[step + 1]))
-    """
         
     @memoize
-    def TimeStateProbability(step, state, pwd):
+    def TimeStateProbability(self, step, state, pwd):
         return self.ForwardProbability(step, state, pwd) + \
                self.BackwardProbability(step, state, pwd) - \
                self.ForwardProbability(len(pwd) - 1, wildcard_token, pwd)
 
     @memoize
-    def StateTransitionProbability(step, state1, state2, pwd):
+    def StateTransitionProbability(self, step, state1, state2, pwd):
         return self.ForwardProbability(step, state1, pwd) + \
                self.BackwardProbability(step + 1, state2, pwd) + \
                self.transition_probability[state1][state2] + \
                self.emission_probability[state2][pwd[step + 1]] - \
                self.ForwardProbability(len(pwd) - 1, wildcard_token, pwd)
 
-    def ForwardBackward():
+    def ForwardBackward(self, corpus):
         # for now assume convergence in constant number of iterations
         for i in xrange(10):
+            print "Starting forward backward pass %d" % i
+            print "Expectation"
             # expectation 
-            
+            tsps = {state: {e: float("-inf") for e in self.o_vocabulary} for state in self.states}
+            for pwd in corpus:
+                for step in xrange(len(pwd)):
+                    for state in self.states:
+                        tsps[state][pwd[step]] = SumLogProbs([self.TimeStateProbability(step, state, pwd), tsps[state][pwd[step]]])
+
+            stps = [[{state1: {state2: self.StateTransitionProbability(step, state1, state2, pwd) for state2 in self.states} for state1 in self.states} for step in xrange(len(pwd) - 1)] for pwd in corpus]
+
             # maximization
+            print "Maximization"
+            # transitions
+            for state1 in self.states:
+                for state2 in self.states:
+                    self.transition_probability[state1][state2] = \
+                        SumLogProbs([SumLogProbs([step[state1][state2] for step in stp]) for stp in stps]) - \
+                        SumLogProbs([SumLogProbs([SumLogProbs(step[state1].values()) for step in stp]) for stp in stps])
+
+            # emissions
+            for state in self.states:
+                for e in self.o_vocabulary:
+                    self.emission_probability[state][e] = tsps[state][e] - \
+                                                          SumLogProbs(tsps[state].values())
+                    
         
             # reset memos
             self.ForwardMatrix.reset()
@@ -146,3 +177,17 @@ class BigramHMM:
             self.BackwardProbability.reset()
             self.TimeStateProbability.reset()
             self.StateTransitionProbability.reset()
+
+    def GenerateSample(self):
+        return "test"
+
+
+def BigramHMMGenerator(training_corpus, num_states):
+    vocabulary = set()
+    for pwd in training_corpus:
+        vocabulary.update(pwd)
+    hmm = BigramHMM(vocabulary, num_states)
+    hmm.ForwardBackward(training_corpus)
+    while True:
+        yield hmm.GenerateSample()
+        """

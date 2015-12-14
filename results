@@ -1,0 +1,26 @@
+hmm with 100 states:
+    10 passwords: 80 correct / 100000
+    100 passwords: 1430 correct / 100000
+    1000 passwords: 2913 correct / 100000
+
+hmm with 50 states:
+    10 passwords -- 99 correct / 100000
+    100 passwords -- 1795 correct / 100000
+    1000 passwords -- 2798 correct / 100000
+
+hmm with 10 states:
+    10 passwords -- 315 correct / 100000
+    100 passwords -- 1531 correct / 100000
+    1000 passwords -- 1760 correct / 100000
+
+
+Baseline (full rockyou) -- 81494 correct / 100000
+Baseline 10 pwd training -- 4612 correct / 100000
+Baseline 100 pwd training -- 6278 correct / 100000
+Baseline 1000 pwd training -- 6011 correct / 100000
+
+Bigram LM (no pruning) -- 3985 correct / 100000
+Bigram LM (no pruning) 10 pwd training -- 45 correct / 100000
+Bigram LM (no pruning) 100 pwd training -- 2540 correct / 100000
+Bigram LM (no pruning) 1000 pwd training -- 4215 correct / 100000
+Bigram LM (simple pruning) -- 4771 correct / 100000
