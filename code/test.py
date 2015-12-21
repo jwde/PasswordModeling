@@ -88,7 +88,7 @@ def testCorpora(training_corpus, test_corpus):
     bigramlmgen = bigramlm.Generator()
     bigramlmresults = testGenerator(bigramlmgen, test_corpus, tries)
     print "Bigram LM attack -- %d tries: %d." % (tries, bigramlmresults)
-    hmmlm = hmmgenerator.HMMLM(training_corpus, 100)
+    hmmlm = hmmgenerator.NLTKHMMLM(training_corpus, 100)
     hmmgen = hmmlm.Generator()
     hmmresults = testGenerator(hmmgen, test_corpus, tries)
     print "HMM attack -- %d tries: %d." % (tries, hmmresults)
@@ -108,7 +108,7 @@ def main():
     print "Test corpus: gmail"
     print "################################################################"
     rockyou_nocount = open('corpora/rockyou_nocount', 'r')
-    training_corpus = [pwd.rstrip() for pwd in rockyou_nocount][:1000]
+    training_corpus = [pwd.rstrip() for pwd in rockyou_nocount][:10]
     gmail_nocount = open('corpora/gmail_nocount', 'r')
     gmail_corpus = [pwd.rstrip() for pwd in gmail_nocount]
     test_corpus = gmail_corpus[:-5000]
