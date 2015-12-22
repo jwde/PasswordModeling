@@ -219,7 +219,6 @@ class HMMLM:
                 if sum_p >= selector:
                     sample.append(e)
                     break
-        print ''.join(sample)
         return ''.join(sample)
 
     def Generator(self):
