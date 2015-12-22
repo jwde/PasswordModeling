@@ -1,6 +1,5 @@
 from math import log, exp, log1p, isnan
 import random
-from memoize import memoize
 import nltk
 from decimal import *
 
